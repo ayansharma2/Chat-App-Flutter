@@ -21,14 +21,7 @@ class _SignInState extends State<SignIn> {
 
 
   var controller = PageController(initialPage: 0);
-  void ShowDialog(String title,BuildContext context){
-    showDialog(barrierColor: Colors.grey,barrierDismissible: false,context: context, builder: (context){
-      return WillPopScope(
-        onWillPop: () async=>false,
-        child: LoadingDialog(title),
-      );
-    });
-  }
+
   @override
   Widget build(BuildContext context) {
     return new Scaffold(
@@ -188,3 +181,11 @@ class _SignInState extends State<SignIn> {
 
 }
 
+void ShowDialog(String title,BuildContext context){
+  showDialog(barrierColor: Colors.grey.withOpacity(0.5),barrierDismissible: false,context: context, builder: (context){
+    return WillPopScope(
+      onWillPop: () async=>false,
+      child: LoadingDialog(title),
+    );
+  });
+}
