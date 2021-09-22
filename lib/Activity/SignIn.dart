@@ -173,12 +173,14 @@ class _SignInState extends State<SignIn> {
     });
   }
 
-  SnackBar createSnackBar(String title){
-    return SnackBar(content: Text(title,style: TextStyle(color: Colors.white),),
+
+
+}
+
+SnackBar createSnackBar(String title){
+  return SnackBar(content: Text(title,style: TextStyle(color: Colors.white),),
     behavior: SnackBarBehavior.floating,
     backgroundColor: Colors.purple,);
-  }
-
 }
 
 void ShowDialog(String title,BuildContext context){

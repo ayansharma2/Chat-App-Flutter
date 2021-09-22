@@ -1,6 +1,8 @@
 import 'package:chat_app/Activity/ChatActivity.dart';
 import 'package:chat_app/Activity/SignIn.dart';
 import 'package:chat_app/Models/Friend.dart';
+import 'package:chat_app/Models/LatestMessage.dart';
+import 'package:chat_app/Models/Message.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
@@ -232,17 +234,66 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
+  var indexMap = Map<String, int>();
+  var latestMessages = [];
+
+  @override
+  void initState() {
+    FirebaseFirestore.instance
+        .collection("Users")
+        .doc(FirebaseAuth.instance.currentUser.uid)
+        .collection("Latest Messages")
+        .orderBy('time')
+        .snapshots()
+        .listen((event) {
+      event.docChanges.forEach((element) {
+        var latestMessage = LatestMessage.fromJson(element.doc.data());
+        if (element.type == DocumentChangeType.added) {
+          latestMessages.insert(0, latestMessage.userId);
+          setState(() {});
+          print("size is ${latestMessages.length}");
+        } else if (element.type == DocumentChangeType.modified) {
+          latestMessages.remove(latestMessage.userId);
+          latestMessages.insert(0, latestMessage.userId);
+          setState(() {});
+        }
+      });
+    });
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container();
+    return ReorderableListView.builder(
+        itemCount: latestMessages.length,
+        itemBuilder: (context, index) {
+          return ListTile(
+            key: ValueKey(index),
+            title: FutureBuilder(
+                future: FirebaseFirestore.instance
+                    .collection("Users")
+                    .doc(latestMessages[index])
+                    .get(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData) {
+                    var user = localUser.User.fromJson(snapshot.data.data());
+                    return userCard(user, context, false,isLatestFragmentTile:true,friendId: latestMessages[index]);
+                  } else {
+                    return Container();
+                  }
+                }),
+          );
+        },
+    onReorder: (oldIndex,newIndex){},);
   }
 }
 
-Widget userCard(localUser.User user, BuildContext context, bool addButton) {
+Widget userCard(localUser.User user, BuildContext context, bool addButton,{bool isLatestFragmentTile=false,String friendId}) {
   return GestureDetector(
-    onTap: (){
-      if(!addButton && user.id!=""){
-        Navigator.of(context).push(MaterialPageRoute(builder: (BuildContext context)=>ChatActivity(user)));
+    onTap: () {
+      if (!addButton && user.id != "") {
+        Navigator.of(context).push(MaterialPageRoute(
+            builder: (BuildContext context) => ChatActivity(user)));
       }
     },
     child: Column(
@@ -267,6 +318,24 @@ Widget userCard(localUser.User user, BuildContext context, bool addButton) {
                   style: GoogleFonts.inter(
                       fontWeight: FontWeight.w400, fontSize: 19),
                 ),
+                Visibility(
+                  visible: isLatestFragmentTile,
+                    child: FutureBuilder(
+                      future: FirebaseFirestore.instance.collection("Users")
+                      .doc(FirebaseAuth.instance.currentUser.uid).collection("Messages")
+                      .doc(friendId).collection("Messages").orderBy('time',descending: true).limit(1).get(),
+                      builder: (context,AsyncSnapshot<QuerySnapshot> snapshot){
+                        if(snapshot.hasData){
+                          var message;
+                          snapshot.data.docs.forEach((element) {
+                            message=Message.fromJson(element.data());
+                          });
+                          return Text(message.message);
+                        }else{
+                          return Container();
+                        }
+                      },
+                    )),
                 Visibility(
                     visible: addButton && !friends.contains(user.id),
                     child: ElevatedButton(

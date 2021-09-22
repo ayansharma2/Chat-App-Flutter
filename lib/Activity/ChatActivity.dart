@@ -1,9 +1,12 @@
+import 'package:chat_app/Activity/SignIn.dart';
+import 'package:chat_app/Models/LatestMessage.dart';
 import 'package:chat_app/Models/Message.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:chat_app/Models/User.dart' as localUser;
 import 'package:google_fonts/google_fonts.dart';
+import 'package:indexed_list_view/indexed_list_view.dart';
 
 class ChatActivity extends StatefulWidget {
   final localUser.User friend;
@@ -21,6 +24,7 @@ class _ChatActivityState extends State<ChatActivity> {
   localUser.User friend;
   _ChatActivityState(this.friend);
   var messages=[];
+  var _controller=ScrollController();
 @override
   void initState() {
   FirebaseFirestore.instance.collection("Users").doc(FirebaseAuth.instance.currentUser.uid)
@@ -33,7 +37,8 @@ class _ChatActivityState extends State<ChatActivity> {
         setState(() {});
       }
     });
-
+    _controller.jumpTo(_controller.position.maxScrollExtent);
+    setState(() {});
   });
     super.initState();
   }
@@ -90,6 +95,8 @@ class _ChatActivityState extends State<ChatActivity> {
       return Container(
         alignment: Alignment.bottomCenter,
         child: ListView.builder(
+          controller: _controller,
+          shrinkWrap: true,
             itemCount: messages.length,
             itemBuilder: (context,index){
               return messageTile(messages[index]);
@@ -102,7 +109,18 @@ class _ChatActivityState extends State<ChatActivity> {
     return Container(
       width: MediaQuery.of(context).size.width,
       alignment: (message.sender==FirebaseAuth.instance.currentUser.uid) ? Alignment.centerRight : Alignment.centerLeft,
-      child: Text(message.message),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.purple,
+          shape: BoxShape.rectangle,
+          borderRadius: BorderRadius.circular(15)
+        ),
+        margin: EdgeInsets.fromLTRB(0, 1.5, 3, 1.5),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(5, 5, 5, 5),
+          child: Text(message.message,style: GoogleFonts.montserrat(color: Colors.white),),
+        ),
+      ),
     );
   }
 
@@ -151,6 +169,10 @@ class _ChatActivityState extends State<ChatActivity> {
   }
 
   void sendMessage(String text) {
+    if(text.trim().isEmpty){
+      ScaffoldMessenger.of(context).showSnackBar(createSnackBar("Enter a valid Message"));
+      return;
+    }
     var fireStore = FirebaseFirestore.instance;
     var uid = FirebaseAuth.instance.currentUser.uid;
     var message = Message(
@@ -176,8 +198,20 @@ class _ChatActivityState extends State<ChatActivity> {
           .then((value) {
         setState(() {
           messageController.text = "";
+          _controller.jumpTo(_controller.position.maxScrollExtent);
         });
+        updateTime(fireStore,uid);
       });
+    });
+  }
+
+  void updateTime(FirebaseFirestore fireStore, String uid) {
+    var latestMessage=LatestMessage(userId: friend.id, time: DateTime.now().toString());
+    fireStore.collection("Users").doc(uid).collection("Latest Messages")
+        .doc(friend.id).set(latestMessage.toJson())
+    .then((value){
+      latestMessage.userId=uid;
+      fireStore.collection("Users").doc(friend.id).collection("Latest Messages").doc(uid).set(latestMessage.toJson());
     });
   }
 }
